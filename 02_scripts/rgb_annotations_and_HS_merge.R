@@ -119,8 +119,8 @@ plot(SBL_03_SASI$B_1752nm)
 #  relocate(c(x,y,coverage_fraction), .after=ID) %>%
 #  mutate_at(grep("B_", colnames(.)),funs(./10000))# Extract polygons from HS CASI image of SBL
 
-#write_rds(CASI03_exact, "03_outputs/polygon_extraction_SBL_03_HS_CASI.rds")
-CASI03_exact <- read_rds("03_outputs/polygon_extraction_SBL_03_HS_CASI.rds")
+#write_rds(CASI03_exact, "04_outputs/polygon_extraction_SBL_03_HS_CASI.rds")
+CASI03_exact <- read_rds("04_outputs/polygon_extraction_SBL_03_HS_CASI.rds")
 CASI03_exact[4] <- round(CASI03_exact[4],2)
 colnames(CASI03_exact)[1:4] <- c("ID","X","Y","Weights")
 
@@ -147,10 +147,10 @@ CASI03_mean <- CASI03_exact_filt %>% group_by(ID) %>% summarise_each(funs(mean))
 #  bind_rows(., .id = "ID") %>% # binding all rows, ID will be filled by names of dataframes
   
 #  relocate(c(x,y,coverage_fraction), .after=ID)%>%
-#  mutate_at(grep("B_", colnames(.)),funs(./10000))
+  mutate_at(grep("B_", colnames(.)),funs(./10000))
 
-#write_rds(SASI03_exact, "03_outputs/polygon_extraction_SBL_03_HS_SASI.rds")
-SASI03_exact <- read_rds("03_outputs/polygon_extraction_SBL_03_HS_SASI.rds")
+#write_rds(SASI03_exact, "04_outputs/polygon_extraction_SBL_03_HS_SASI.rds")
+SASI03_exact <- read_rds("04_outputs/polygon_extraction_SBL_03_HS_SASI.rds")
 SASI03_exact[4] <- round(SASI03_exact[4],2)
 colnames(SASI03_exact)[1:4] <- c("ID","X","Y","Weights")
 
@@ -181,12 +181,12 @@ plot(SBL_04_SASI$B_1752nm)
 #  setNames(unique(rgb_polygons$id)) %>%  # renaming each dataframe in the list
   
 #  bind_rows(., .id = "ID") %>% # binding all rows, ID will be filled by names of dataframes
-  
+
 #  relocate(c(x,y,coverage_fraction), .after=ID) %>%
 #  mutate_at(grep("B_", colnames(.)),funs(./10000))# Extract polygons from HS CASI image of SBL
 
-#write_rds(CASI04_exact, "03_outputs/polygon_extraction_SBL_04_HS_CASI.rds")
-CASI04_exact <- read_rds("03_outputs/polygon_extraction_SBL_04_HS_CASI.rds")
+#write_rds(CASI04_exact, "04_outputs/polygon_extraction_SBL_04_HS_CASI.rds")
+CASI04_exact <- read_rds("04_outputs/polygon_extraction_SBL_04_HS_CASI.rds")
 CASI04_exact[4] <- round(CASI04_exact[4],2)
 colnames(CASI04_exact)[1:4] <- c("ID","X","Y","Weights")
 
@@ -215,8 +215,8 @@ CASI04_mean <- CASI04_exact_filt %>% group_by(ID) %>% summarise_each(funs(mean))
 #  relocate(c(x,y,coverage_fraction), .after=ID)%>%
 #  mutate_at(grep("B_", colnames(.)),funs(./10000))
 
-#write_rds(SASI04_exact, "03_outputs/polygon_extraction_SBL_04_HS_SASI.rds")
-SASI04_exact <- read_rds("03_outputs/polygon_extraction_SBL_04_HS_SASI.rds")
+#write_rds(SASI04_exact, "04_outputs/polygon_extraction_SBL_04_HS_SASI.rds")
+SASI04_exact <- read_rds("04_outputs/polygon_extraction_SBL_04_HS_SASI.rds")
 SASI04_exact[4] <- round(SASI04_exact[4],2)
 colnames(SASI04_exact)[1:4] <- c("ID","X","Y","Weights")
 
@@ -296,11 +296,11 @@ bands_04<-CASI_SASI_04[,-c(2:7)]
 bands_03$ID <- as.numeric(bands_03$ID)
 bands_04$ID <- as.numeric(bands_04$ID)
 
-#write_rds(bands_03, "03_outputs/bands_only_03.rds")
-#write_rds(bands_04,"03_outputs/bands_only_04.rds")
+#write_rds(bands_03, "04_outputs/bands_only_03.rds")
+#write_rds(bands_04,"04_outputs/bands_only_04.rds")
 
-bands_03 <- read_rds("03_outputs/bands_only_03.rds")
-bands_04 <- read_rds("03_outputs/bands_only_04.rds")
+bands_03 <- read_rds("04_outputs/bands_only_03.rds")
+bands_04 <- read_rds("04_outputs/bands_only_04.rds")
 
 bands_03 <- bands_03[ , order(as.numeric(colnames(bands_03)))]
 which(is.na(bands_03)==T) #No NAs introduced
@@ -444,8 +444,8 @@ sblID_bd$ID <- gsub("[^0-9.-]", "", sblID_bd$ID)
 
 sbl_sp_ID_bd <- merge(sblID_bd,rgb_polygons,by="ID")
 
-#write_rds(sbl_sp_ID_bd, "sbl_smoothed_spectra.rds")
-sbl_sp_ID_bd <- read_rds("sbl_smoothed_spectra.rds")
+#write_rds(sbl_sp_ID_bd, "04_outputs/sbl_smoothed_spectra.rds")
+sbl_sp_ID_bd <- read_rds("04_outputs/sbl_smoothed_spectra.rds")
 
 #### 5) Extract processed CR spectra to table with ID and species ####
 SI_sblCR <- (CR_sbl_bd@ID) # extract SI
@@ -462,7 +462,6 @@ sblID_bd_CR$ID <- gsub("[^0-9.-]", "", sblID_bd_CR$ID)
 
 sbl_sp_ID_bd_CR <- merge(sblID_bd_CR,rgb_polygons,by="ID") #matching species and area with HS data
 
-write_rds(sbl_sp_ID_bd_CR, "sbl_CR_spectra.rds")
 sbl_sp_ID_bd_CR <- read_rds("sbl_CR_spectra.rds")
 
 #### 6) ggplot by species with smoothed spectra####
@@ -495,9 +494,12 @@ ggplot(melted_sbl_by_sp, aes(x=Wavenumber, y=mean_reflectance, color = Label, fi
   ggtitle("Figure 1 : Reflectance moyenne par espece a la SBL")+
   theme(plot.title = element_text(hjust = 0.5, size=16))
 
-  #test avec 2 especes
+ggsave(filename="03_figures/smoothed_ref_all_SBL.jpg")
+
+
+  #test avec 5 especes
 melted_ACSAFAGR <- melted_sbl_by_sp %>%
-  dplyr::filter(Label %in% c("ACSA","ACRU","FAGR","ABBA","THOC"))
+  dplyr::filter(Label %in% c("ACSA","BEPA","FAGR","ABBA","THOC"))
 
 ggplot(melted_ACSAFAGR, aes(x=Wavenumber, y=mean_reflectance, group = Label)) + 
   geom_line(size=0.75, aes(color=Label)) +
@@ -509,6 +511,8 @@ ggplot(melted_ACSAFAGR, aes(x=Wavenumber, y=mean_reflectance, group = Label)) +
   ylim(0,0.62)+
   ggtitle("Figure 1 : Reflectance moyenne par espece a la SBL")+
   theme(plot.title = element_text(hjust = 0.5, size=16))
+ggsave(filename="03_figures/smooth_ref_5sp_SBL.jpg")
+
 
 length(which(sbl_sp_ID_bd$Label=="Betula")) #only 1, which explains great variability
 
@@ -552,7 +556,7 @@ ggplot(melted_ACSAFAGR_CR, aes(x=Wavenumber, y=mean_reflectance, group = Label))
   ggtitle("Figure 1 : Mean CR reflectance by species at SBL")+
   theme(plot.title = element_text(hjust = 0.5, size=10),legend.text=element_text(size=rel(0.5)),legend.title = element_text(size=10), axis.title = element_text(size=10))
 
-ggsave(filename="04_figures/CR_ref_5sp_SBL.jpg")
+ggsave(filename="03_figures/CR_ref_5sp_SBL.jpg")
 
 #### 8) Test PLSDA with smoothed spectra ####
 library(mdatools)
