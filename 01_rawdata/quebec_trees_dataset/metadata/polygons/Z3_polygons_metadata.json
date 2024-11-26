@@ -1,0 +1,63 @@
+{
+    "type": "Feature",
+    "stac_version": "1.0.0",
+    "id": "Z3_polygons",
+    "properties": {
+        "title": "pol_zone3",
+        "description": "Individual tree annotations with label of zone 3 SBL. The segmentation was done on imagery from 2021-09-02. WGS84 / UTM zone 18N.",
+        "created": "2021-06-03T00:00:00Z",
+        "updated": "2023-01-27T17:33:00Z",
+        "sci:doi": "10.5281/zenodo.8148479",
+        "sci:publication": "https://doi.org/10.1101/2023.08.03.548604",
+        "proj:epsg": 32618,
+        "datetime": "2021-09-02T18:24:42Z"
+    },
+    "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+            [
+                576653.9677,
+                5093601.1005
+            ],
+            [
+                576653.533,
+                5093558.066
+            ],
+            [
+                576863.0544,
+                5093347.6754
+            ],
+            [
+                576901.3073,
+                5093380.7118
+            ],
+            [
+                576914.7828,
+                5093484.1685
+            ],
+            [
+                576968.2498,
+                5093510.6846
+            ],
+            [
+                576999.1129,
+                5093621.0963
+            ],
+            [
+                576779.1589,
+                5093720.206
+            ]
+        ]
+    },
+    "links": [],
+    "assets": {},
+    "bbox": [
+        576653.53,
+        576999.11,
+        5093347.68,
+        5093720.21
+    ],
+    "stac_extensions": [
+        "https://stac-extensions.github.io/projection/v1.1.0/schema.json"
+    ]
+}
