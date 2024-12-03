@@ -147,7 +147,7 @@ CASI03_mean <- CASI03_exact_filt %>% group_by(ID) %>% summarise_each(funs(mean))
 #  bind_rows(., .id = "ID") %>% # binding all rows, ID will be filled by names of dataframes
   
 #  relocate(c(x,y,coverage_fraction), .after=ID)%>%
-  mutate_at(grep("B_", colnames(.)),funs(./10000))
+#  mutate_at(grep("B_", colnames(.)),funs(./10000))
 
 #write_rds(SASI03_exact, "04_outputs/polygon_extraction_SBL_03_HS_SASI.rds")
 SASI03_exact <- read_rds("04_outputs/polygon_extraction_SBL_03_HS_SASI.rds")
@@ -282,7 +282,6 @@ CASI_SASI_04 <- CASI_SASI_04 %>%
 
 
 #### Convert data to spectra ####
-library(spectrolab)
 colnames(CASI_SASI_03) <- gsub("nm", "", colnames(CASI_SASI_03)) #fix colnames
 colnames(CASI_SASI_03) <- gsub("B_", "", colnames(CASI_SASI_03)) #fix colnames
 colnames(CASI_SASI_04) <- gsub("nm", "", colnames(CASI_SASI_04)) #fix colnames
@@ -301,6 +300,7 @@ bands_04$ID <- as.numeric(bands_04$ID)
 
 bands_03 <- read_rds("04_outputs/bands_only_03.rds")
 bands_04 <- read_rds("04_outputs/bands_only_04.rds")
+library(spectrolab)
 
 bands_03 <- bands_03[ , order(as.numeric(colnames(bands_03)))]
 which(is.na(bands_03)==T) #No NAs introduced
@@ -326,6 +326,8 @@ bands_0304_filtered <- bands_0304 %>%
 
 length(unique(bands_0304_filtered$ID))
 
+#MUST ALSO FILTER OUT SHADOWED PIXELS AND VERY LOW REFLECTANCE PIXELS IN GENERAL
+
 #as_spectra
 spectra_sbl <- as_spectra(bands_0304_filtered, name_idx = 244)
 spectral_data <- as.data.frame(spectra_sbl)
@@ -337,10 +339,10 @@ spectral_data <- as.data.frame(spectra_sbl)
 # Match the reflectance data of CASI and SASI wavelengths
 splice_bands_from_manufacturer <- 957.50 #first overlapping wavelengths from CASI/SASI
 
-#Beech_reflect_matched <-  match_sensors(x = spectra_sbl, 
-#                                        splice_at = splice_bands_from_manufacturer,
-#                                        fixed_sensor=2,
-#                                        interpolate_wvl = c(11, 1))
+sbl_reflect_matched <-  match_sensors(x = spectra_sbl, 
+                                        splice_at = splice_bands_from_manufacturer,
+                                        fixed_sensor=2,
+                                        interpolate_wvl = c(11, 1))
 # check if correction worked
 par(mfrow=c(1,2))
 plot(spectra_sbl, lwd = 1.2, xlab="Wavelengths in nm",ylab="Reflectance",
@@ -348,21 +350,25 @@ plot(spectra_sbl, lwd = 1.2, xlab="Wavelengths in nm",ylab="Reflectance",
 
 plot_regions(spectra_sbl[4], regions = default_spec_regions(), add = TRUE)
 
-#plot(Beech_reflect_matched, lwd = 1.2, xlab="Wavelengths in nm",ylab="Reflectance",
-#     col = rgb(1, 0, 0))
-#plot_regions(Beech_reflect_matched, regions = default_spec_regions(), add = TRUE)
+plot(sbl_reflect_matched, lwd = 1.2, xlab="Wavelengths in nm",ylab="Reflectance",
+     col = rgb(1, 0, 0))
+plot_regions(sbl_reflect_matched, regions = default_spec_regions(), add = TRUE)
 
 plot(spectra_sbl[6,])
+plot(sbl_reflect_matched[6,])
 
 
 #### 2) Transfer to hsdar for further processing ####
 library(hsdar)
+library(hyperSpec)
 
-Spectrum_sbl <- as.matrix(spectra_sbl) %>% data.frame()
+Spectrum_sbl <- as.matrix(sbl_reflect_matched) %>% data.frame()
 Wavelengths_sbl <- gsub("X", "", Spectrum_sbl %>% colnames() %>% as.character()) %>% as.numeric()
 
 speclib_sbl <- speclib(spectra = t(Spectrum_sbl), wavelength = Wavelengths_sbl) # load Bands into spectral library
 idSpeclib(speclib_sbl) <- paste0(rownames(Spectrum_sbl)) # add IDs
+
+speclib_sbl@transformation
 
 ### 3) Pre-processing of spectra in hsdar ####
 
@@ -374,26 +380,25 @@ sbl_interpolated <- interpolate.mask(speclib_sbl_mask) # interpolate masked regi
 plot(speclib_sbl)
 plot(sbl_interpolated)
 
-sbl_smooth <- noiseFiltering(speclib_sbl, method = 'sgolay', n = 15, p=2) # smoothing of spectra
+sbl_smooth <- noiseFiltering(speclib_sbl, method = 'sgolay', n = 21, p=4) # smoothing of spectra with window of 21 bands and polynomial 4th (Wallis et al., YYYY)
 plot(sbl_smooth)# p = polynomial order w = window size (must be odd) m = m-th derivative 
-#plot_regions(as_spectra(sbl_smooth@spectra), regions = default_spec_regions())
 hsdar::spectra(sbl_smooth)[hsdar::spectra(sbl_smooth) < 0] <- 0 #set negative values to 0
 
-#CR_sbl_bd <- transformSpeclib(sbl_smooth, out="bd", method = "sh") # calculating continuum removal: band depth (closest related to original spectrum)
-#write_rds(CR_sbl_bd, "cont_rem_sbl_data.rds")
+CR_sbl_bd <- transformSpeclib(sbl_smooth, out="bd", method = "sh") # calculating continuum removal: band depth (closest related to original spectrum)
+#write_rds(CR_sbl_bd, "04_outputs/cont_rem_sbl_data.rds")
 CR_sbl_bd <- read_rds("cont_rem_sbl_data.rds")
 hsdar::spectra(CR_sbl_bd)[hsdar::spectra(CR_sbl_bd) < 0] <- 0 #set negative values to 0
 hsdar::spectra(CR_sbl_bd)[hsdar::spectra(CR_sbl_bd) > 1] <- 1 #set values higher 1 to 1
 
 #closest wavelengths
-target_wavelengths <- c(472, 601, 1002, 1498, 2008)
+target_wavelengths <- c(472,601,1002,1498,2008)#472, 601, 1002,1498,2008  were removed because weird things happened
 available_wavelengths <- CR_sbl_bd@wavelength
 closest_wavelengths <- sapply(target_wavelengths, function(w) {
   available_wavelengths[which.min(abs(available_wavelengths - w))]
 })
 closest_wavelengths
 
-#featureSelection <- specfeat(CR_sbl_bd, closest_wavelengths) #Example to isolate the absorption features around 450, 600, 1500 and 2000 nm.##Continuum removal
+featureSelection <- specfeat(CR_sbl_bd, target_wavelengths, tol = 5) #Example to isolate the absorption features around 450, 600, 1500 and 2000 nm.##Continuum removal
 
 # Plot pre-processing of spectra ####
 library(dlfUtils)
@@ -420,11 +425,11 @@ plot(CR_sbl_bd, main="e: Continuum removal - Band depth segment hull",FUN="max",
 plot(CR_sbl_bd, FUN="mean", col="black", new=F)
 plot(CR_sbl_bd, FUN="min",  new=F, col="blue")
 
-#plot(featureSelection, main="Absorption features",fnumber=1, col="violet")
-#plot(featureSelection, fnumber=2, col="orange", new=F)
-#plot(featureSelection, fnumber=3, col="red", new=F)
-#plot(featureSelection, fnumber=4, col="green", new=F)
-#plot(featureSelection, fnumber=5, col="blue", new=F)
+plot(featureSelection, main="Absorption features",fnumber=1, col="violet")
+plot(featureSelection, fnumber=2, col="orange", new=F)
+plot(featureSelection, fnumber=3, col="red", new=F)
+plot(featureSelection, fnumber=4, col="green", new=F)
+plot(featureSelection, fnumber=5, col="blue", new=F)
 # some adjustment needed for feature 3-5 
 # (for single plots - could be done within the continuum removal by changing the segment hull points)
 # we can use e.g. the area under the single absorption features to characterize the plots and correlate these areas against elevation
@@ -461,6 +466,8 @@ colnames(rgb_polygons)[5] <- "ID"
 sblID_bd_CR$ID <- gsub("[^0-9.-]", "", sblID_bd_CR$ID)
 
 sbl_sp_ID_bd_CR <- merge(sblID_bd_CR,rgb_polygons,by="ID") #matching species and area with HS data
+
+#write_rds(sbl_sp_ID_bd_CR,"04_outputs/sbl_CR_spectra.rds")
 
 sbl_sp_ID_bd_CR <- read_rds("sbl_CR_spectra.rds")
 
@@ -565,11 +572,190 @@ library(smotefamily)
 
 set.seed(133) #For reproducibility
 #import
-sbl_sp_ID_bd <- read_rds("sbl_smoothed_spectra.rds")
+sbl_sp_ID_bd <- read_rds("04_outputs/sbl_smoothed_spectra.rds")
 
 sbl_sp_ID_bd$Label <- as.factor(sbl_sp_ID_bd$Label)
 
 #Global model
+
+sbl_sp_ID_bd <- sbl_sp_ID_bd[,-248]%>%
+  dplyr::filter(n()>10)%>%
+  dplyr::filter(!is.na(Label))
+
+sbl_sp_ID_bd$Label <- droplevels(sbl_sp_ID_bd$Label)#Drop unused factor levels from filtered out species
+sbl_sp_ID_bd$Label <- as.factor(sbl_sp_ID_bd$Label)
+levels(sbl_sp_ID_bd$Label)
+
+table(sbl_sp_ID_bd[, 245])
+
+# Apply SMOTE (maybe not for large class numbers)
+#smote_sbl_total <- SMOTE(X = sbl_sp_ID_bd[,2:244], target = sbl_sp_ID_bd$Label, 
+#                      K = 5, dup_size = 3)
+
+# Combine the SMOTE result into a new data frame
+smote_sbl <- sbl_sp_ID_bd[,2:245]
+
+#smote_sbl <- data.frame(smote_sbl_total$data)
+names(smote_sbl)[ncol(smote_sbl)] <- "Species"
+smote_sbl$Species <- as.factor(smote_sbl$Species)
+
+smote_sbl$Species <- droplevels(smote_sbl$Species)#Drop unused factor levels from filtered out species
+
+
+# Check the distribution of the target variable after SMOTE
+table(smote_sbl$Species)
+
+cal.ind <- smote_sbl[sample(1:nrow(smote_sbl),0.80*nrow(smote_sbl), replace=F),]
+length(which(cal.ind$Species=="FAGR"))
+
+val.ind <- anti_join(smote_sbl,cal.ind)
+
+table(val.ind$Species)
+
+Xc <-  smote_sbl[rownames(cal.ind), 1:243]
+Xv <-  smote_sbl[rownames(val.ind), 1:243]
+
+cc.all <-  cal.ind[rownames(cal.ind), 244]
+cv.all <-  val.ind[rownames(val.ind), 244]
+table(cc.all)
+table(cv.all)
+
+cc.abba <- cc.all == "ABBA"
+cv.abba <- cv.all == "ABBA"
+
+m.all <-  plsda(Xc, cc.all, 20, cv = 1)
+m.abba <- plsda(Xc, cc.abba, 20, cv = 1, classname = "ABBA")
+
+summary(m.all)
+summary(m.abba)
+
+getConfusionMatrix(m.all$calres)
+getConfusionMatrix(m.abba$calres)
+
+#Classification plots
+par(mfrow = c(1, 2))
+plotPredictions(m.all) #choose which class to show predictions for with nc= n
+plotPredictions(m.abba) #choose which class to show predictions for with nc= n
+
+#Performance plots
+par(mfrow = c(3, 2))
+plotMisclassified(m.all, nc = 3)
+plotMisclassified(m.abba)
+plotSensitivity(m.all, nc = 3)
+plotSensitivity(m.abba)
+plotSpecificity(m.all, nc = 3)
+plotSpecificity(m.abba)
+
+par(mfrow = c(1, 2))
+plotRegcoeffs(m.all, ncomp = 3, ny = 3)
+plotRegcoeffs(m.abba, ncomp = 1, show.ci = TRUE)
+
+#Predictions for new data (validation subset)
+
+res <- predict(m.all,Xv,cv.all)
+summary(res)
+
+plotPredictions(res)
+
+resabba <-  predict(m.abba, Xv, cv.all)
+summary(resabba)
+
+plotPredictions(resabba)
+
+####SUBSET WITH ABBA,BEPA and ACRU####
+sbl_sp_ID_bd_sub <- subset(sbl_sp_ID_bd, Label==c("ABBA","BEPA","ACRU"))
+
+sbl_sp_ID_bd_sub$Label <- as.factor (sbl_sp_ID_bd_sub$Label)
+sbl_sp_ID_bd_sub$Label <- droplevels(sbl_sp_ID_bd_sub$Label)#Drop unused factor levels from filtered out species
+
+sbl_sp_ID_bd_sub[, 245] <- factor(sbl_sp_ID_bd_sub[, 245])
+table(sbl_sp_ID_bd_sub[, 245])
+
+# Apply SMOTE
+smote_sbl_sub_total <- SMOTE(X = sbl_sp_ID_bd_sub[,2:244], target = sbl_sp_ID_bd_sub$Label, 
+                         K = 5, dup_size = 1)
+
+# Combine the SMOTE result into a new data frame
+smote_sbl_sub <- data.frame(smote_sbl_sub_total$data)
+names(smote_sbl_sub)[ncol(smote_sbl_sub)] <- "Species"
+smote_sbl_sub$Species <- as.factor(smote_sbl_sub$Species)
+
+# Check the distribution of the target variable after SMOTE
+table(smote_sbl_sub$Species)
+
+cal_ind_sub <- smote_sbl_sub[sample(1:nrow(smote_sbl_sub),0.80*nrow(smote_sbl_sub), replace=F),]
+length(which(cal_ind_sub$Species=="ACRU"))
+
+val_ind_sub <- anti_join(smote_sbl_sub,cal_ind_sub)
+
+Xc_sub = smote_sbl_sub[rownames(cal_ind_sub), 1:243]
+Xv_sub = smote_sbl_sub[rownames(val_ind_sub), 1:243]
+
+cc_all_sub = smote_sbl_sub[rownames(cal_ind_sub), 244]
+cv_all_sub = smote_sbl_sub[rownames(val_ind_sub), 244]
+
+cc_abba_sub <- as.factor(cc_all_sub=="ABBA") %>%
+  droplevels()
+cv_abba_sub = cv_all_sub == "ABBA"
+
+str(cc_abba_sub)
+
+m_all_sub = plsda(Xc_sub, cc_all_sub, ncomp = 15, cv = 1)
+m_abba_sub = plsda(Xc_sub, cc_abba_sub, 5, cv = 1, classname = "ABBA")
+
+summary(m_all_sub)
+summary(m_abba_sub)
+
+# Cross-validation to evaluate performance
+set.seed(123)
+
+# Extract classification accuracy
+misclass <- m_all_sub$cvres$misclassified
+accuracy <- 1-misclass
+
+# Find the optimal number of components
+optimal_comp <- which.max(accuracy)
+cat("Optimal number of components:", optimal_comp, "\n")
+
+#Classification plots
+par(mfrow = c(1, 2))
+plotPredictions(m_all_sub, nc=1) #choose which class to show predictions for with nc= n
+plotPredictions(m_abba_sub, nc=1) #choose which class to show predictions for with nc= n
+
+#Performance plots
+par(mfrow = c(3, 2))
+plotMisclassified(m_all_sub, nc = 3)
+plotMisclassified(m_abba_sub)
+plotSensitivity(m_all_sub, nc = 3)
+plotSensitivity(m_abba_sub)
+plotSpecificity(m_all_sub, nc = 3)
+plotSpecificity(m_abba_sub)
+
+par(mfrow = c(1, 2))
+plotRegcoeffs(m_all_sub, ncomp = 3, ny = 3)
+plotRegcoeffs(m_abba_sub, ncomp = 1, show.ci = TRUE)
+
+#Predictions for new data (validation subset)
+
+res_sub <- predict(m_all_sub,Xv_sub,cv_all_sub, type="prob")
+summary(res_sub)
+
+resabba_sub <-  predict(m_abba_sub, Xv_sub, cv_all_sub, )
+summary(resabba_sub)
+
+
+####TEST TOUTES SP IMP SBL####
+set.seed(133) #For reproducibility
+#import
+sbl_sp_ID_bd <- read_rds("04_outputs/sbl_smoothed_spectra.rds")
+
+sbl_sp_ID_bd$Label <- as.factor(sbl_sp_ID_bd$Label)
+
+(unique(sbl_sp_ID_bd$Label))
+
+#Global model
+sbl_sp_ID_bd_2<- subset(sbl_sp_ID_bd, Label%in%c("ABBA","BEPA","ACRU", "ACSA", "ACPE", "BEAL", "FAGR", "LALA", "mort","PIMA", "PIST", "POGR", "THOC"))
+
 
 sbl_sp_ID_bd <- sbl_sp_ID_bd[,-248]%>%
   dplyr::filter(n()>10)%>%
@@ -655,80 +841,3 @@ summary(resabba)
 
 plotPredictions(resabba)
 
-####SUBSET WITH ABBA,BEPA and ACRU####
-sbl_sp_ID_bd_sub <- subset(sbl_sp_ID_bd, Label==c("ABBA","BEPA","ACRU"))
-
-sbl_sp_ID_bd_sub$Label <- as.factor (sbl_sp_ID_bd_sub$Label)
-sbl_sp_ID_bd_sub$Label <- droplevels(sbl_sp_ID_bd_sub$Label)#Drop unused factor levels from filtered out species
-
-sbl_sp_ID_bd_sub[, 245] <- factor(sbl_sp_ID_bd_sub[, 245])
-table(sbl_sp_ID_bd_sub[, 245])
-
-# Apply SMOTE
-smote_sbl_sub_total <- SMOTE(X = sbl_sp_ID_bd_sub[,2:244], target = sbl_sp_ID_bd_sub$Label, 
-                         K = 5, dup_size = 1)
-
-# Combine the SMOTE result into a new data frame
-smote_sbl_sub <- data.frame(smote_sbl_sub_total$data)
-names(smote_sbl_sub)[ncol(smote_sbl_sub)] <- "Species"
-smote_sbl_sub$Species <- as.factor(smote_sbl_sub$Species)
-
-# Check the distribution of the target variable after SMOTE
-table(smote_sbl_sub$Species)
-
-cal_ind_sub <- smote_sbl_sub[sample(1:nrow(smote_sbl_sub),0.70*nrow(smote_sbl_sub), replace=F),]
-length(which(cal_ind_sub$Species=="ACRU"))
-
-val_ind_sub <- anti_join(smote_sbl_sub,cal_ind_sub)
-
-Xc_sub = smote_sbl_sub[rownames(cal_ind_sub), 1:243]
-Xv_sub = smote_sbl_sub[rownames(val_ind_sub), 1:243]
-
-cc_all_sub = smote_sbl_sub[rownames(cal_ind_sub), 244]
-cv_all_sub = smote_sbl_sub[rownames(val_ind_sub), 244]
-
-cc_abba_sub = cc_all_sub == "ABBA"
-cv_abba_sub = cv_all_sub == "ABBA"
-
-m_all_sub = plsda(Xc_sub, cc_all_sub, 5, cv = 1)
-m_abba_sub = plsda(Xc_sub, cc_abba_sub, 3, cv = 1, classname = "ABBA")
-
-summary(m_all_sub)
-summary(m_abba_sub)
-
-# Cross-validation to evaluate performance
-set.seed(123)
-
-# Extract classification accuracy
-misclass <- m_all_sub$cvres$misclassified
-accuracy <- 1-misclass
-
-# Find the optimal number of components
-optimal_comp <- which.max(accuracy)
-cat("Optimal number of components:", optimal_comp, "\n")
-
-#Classification plots
-par(mfrow = c(1, 2))
-plotPredictions(m_all_sub) #choose which class to show predictions for with nc= n
-plotPredictions(m_abba_sub) #choose which class to show predictions for with nc= n
-
-#Performance plots
-par(mfrow = c(3, 2))
-plotMisclassified(m_all_sub, nc = 3)
-plotMisclassified(m_abba_sub)
-plotSensitivity(m_all_sub, nc = 3)
-plotSensitivity(m_abba_sub)
-plotSpecificity(m_all_sub, nc = 3)
-plotSpecificity(m_abba_sub)
-
-par(mfrow = c(1, 2))
-plotRegcoeffs(m_all_sub, ncomp = 3, ny = 3)
-plotRegcoeffs(m_abba_sub, ncomp = 1, show.ci = TRUE)
-
-#Predictions for new data (validation subset)
-
-res_sub <- predict(m_all_sub,Xv_sub,cv_all_sub, type="prob")
-summary(res_sub)
-
-resabba_sub <-  predict(m_abba_sub, Xv_sub, cv_all_sub, )
-summary(resabba_sub)
