@@ -548,6 +548,9 @@ ggplot(melted_sbl_CR_by_sp, aes(x=Wavenumber, y=mean_reflectance, color = Label,
   ggtitle("Figure 1 : Reflectance moyenne par espece a la SBL")+
   theme(plot.title = element_text(hjust = 0.5, size=16))
 
+ggsave(filename="03_figures/CR_ref_SBL.jpg")
+
+
 #test avec 5 especes
 melted_ACSAFAGR_CR <- melted_sbl_CR_by_sp %>%
   dplyr::filter(Label %in% c("ACSA","ACRU","FAGR","ABBA", "THOC"))
