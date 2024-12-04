@@ -451,6 +451,7 @@ sbl_sp_ID_bd <- merge(sblID_bd,rgb_polygons,by="ID")
 
 #write_rds(sbl_sp_ID_bd, "04_outputs/sbl_smoothed_spectra.rds")
 sbl_sp_ID_bd <- read_rds("04_outputs/sbl_smoothed_spectra.rds")
+write.csv(sbl_sp_ID_bd,"04_outputs/sbl_smoothed_spectra.csv")
 
 #### 5) Extract processed CR spectra to table with ID and species ####
 SI_sblCR <- (CR_sbl_bd@ID) # extract SI
