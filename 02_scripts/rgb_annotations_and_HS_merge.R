@@ -384,9 +384,9 @@ sbl_smooth <- noiseFiltering(speclib_sbl, method = 'sgolay', n = 21, p=4) # smoo
 plot(sbl_smooth)# p = polynomial order w = window size (must be odd) m = m-th derivative 
 hsdar::spectra(sbl_smooth)[hsdar::spectra(sbl_smooth) < 0] <- 0 #set negative values to 0
 
-CR_sbl_bd <- transformSpeclib(sbl_smooth, out="bd", method = "sh") # calculating continuum removal: band depth (closest related to original spectrum)
+#CR_sbl_bd <- transformSpeclib(sbl_smooth, out="bd", method = "sh") # calculating continuum removal: band depth (closest related to original spectrum)
 #write_rds(CR_sbl_bd, "04_outputs/cont_rem_sbl_data.rds")
-CR_sbl_bd <- read_rds("cont_rem_sbl_data.rds")
+CR_sbl_bd <- read_rds("04_outputs/cont_rem_sbl_data.rds")
 hsdar::spectra(CR_sbl_bd)[hsdar::spectra(CR_sbl_bd) < 0] <- 0 #set negative values to 0
 hsdar::spectra(CR_sbl_bd)[hsdar::spectra(CR_sbl_bd) > 1] <- 1 #set values higher 1 to 1
 
@@ -451,7 +451,9 @@ sbl_sp_ID_bd <- merge(sblID_bd,rgb_polygons,by="ID")
 
 #write_rds(sbl_sp_ID_bd, "04_outputs/sbl_smoothed_spectra.rds")
 sbl_sp_ID_bd <- read_rds("04_outputs/sbl_smoothed_spectra.rds")
-write.csv(sbl_sp_ID_bd,"04_outputs/sbl_smoothed_spectra.csv")
+
+write_sf(sbl_sp_ID_bd, "04_outputs/sbl_smoothed_spectra.gpkg")
+write.csv(x=sbl_sp_ID_bd,file="04_outputs/sbl_smoothed_spectra.csv", row.names = F, sep = ";")
 
 #### 5) Extract processed CR spectra to table with ID and species ####
 SI_sblCR <- (CR_sbl_bd@ID) # extract SI
@@ -466,11 +468,11 @@ colnames(sblID_bd_CR)[1] <- "ID"
 colnames(rgb_polygons)[5] <- "ID"
 sblID_bd_CR$ID <- gsub("[^0-9.-]", "", sblID_bd_CR$ID)
 
-sbl_sp_ID_bd_CR <- merge(sblID_bd_CR,rgb_polygons,by="ID") #matching species and area with HS data
+#sbl_sp_ID_bd_CR <- merge(sblID_bd_CR,rgb_polygons,by="ID") #matching species and area with HS data
 
 #write_rds(sbl_sp_ID_bd_CR,"04_outputs/sbl_CR_spectra.rds")
 
-sbl_sp_ID_bd_CR <- read_rds("sbl_CR_spectra.rds")
+sbl_sp_ID_bd_CR <- read_rds("04_outputs/sbl_CR_spectra.rds")
 
 #### 6) ggplot by species with smoothed spectra####
 library(reshape2)
@@ -503,7 +505,6 @@ ggplot(melted_sbl_by_sp, aes(x=Wavenumber, y=mean_reflectance, color = Label, fi
   theme(plot.title = element_text(hjust = 0.5, size=16))
 
 ggsave(filename="03_figures/smoothed_ref_all_SBL.jpg")
-
 
   #test avec 5 especes
 melted_ACSAFAGR <- melted_sbl_by_sp %>%
@@ -573,6 +574,7 @@ ggsave(filename="03_figures/CR_ref_5sp_SBL.jpg")
 library(mdatools)
 library(tidyverse)
 library(smotefamily)
+library(sf)
 
 set.seed(133) #For reproducibility
 #import
@@ -580,24 +582,30 @@ sbl_sp_ID_bd <- read_rds("04_outputs/sbl_smoothed_spectra.rds")
 
 sbl_sp_ID_bd$Label <- as.factor(sbl_sp_ID_bd$Label)
 
+tapply(sbl_sp_ID_bd$Label,sbl_sp_ID_bd$Label, FUN=length)#length of every label class
+
+
 #Global model
 
-sbl_sp_ID_bd <- sbl_sp_ID_bd[,-248]%>%
-  dplyr::filter(n()>10)%>%
+sbl_sp_ID_bd <- sbl_sp_ID_bd[,-247]%>%
+  dplyr::group_by(Label) %>%  # Group by 'Label'
+  dplyr::filter(n() > 300) %>% # Keep groups with more than 300 occurrences
+  dplyr::filter(!Label %in% c("Acer","Picea")) %>%
+  dplyr::ungroup() %>%   
   dplyr::filter(!is.na(Label))
 
 sbl_sp_ID_bd$Label <- droplevels(sbl_sp_ID_bd$Label)#Drop unused factor levels from filtered out species
 sbl_sp_ID_bd$Label <- as.factor(sbl_sp_ID_bd$Label)
 levels(sbl_sp_ID_bd$Label)
 
-table(sbl_sp_ID_bd[, 245])
+table(sbl_sp_ID_bd[, 244])
 
 # Apply SMOTE (maybe not for large class numbers)
 #smote_sbl_total <- SMOTE(X = sbl_sp_ID_bd[,2:244], target = sbl_sp_ID_bd$Label, 
 #                      K = 5, dup_size = 3)
 
 # Combine the SMOTE result into a new data frame
-smote_sbl <- sbl_sp_ID_bd[,2:245]
+smote_sbl <- sbl_sp_ID_bd[,2:244]
 
 #smote_sbl <- data.frame(smote_sbl_total$data)
 names(smote_sbl)[ncol(smote_sbl)] <- "Species"
@@ -610,25 +618,28 @@ smote_sbl$Species <- droplevels(smote_sbl$Species)#Drop unused factor levels fro
 table(smote_sbl$Species)
 
 cal.ind <- smote_sbl[sample(1:nrow(smote_sbl),0.80*nrow(smote_sbl), replace=F),]
-length(which(cal.ind$Species=="FAGR"))
+length(which(cal.ind$Species=="ACRU"))
 
 val.ind <- anti_join(smote_sbl,cal.ind)
 
 table(val.ind$Species)
 
-Xc <-  smote_sbl[rownames(cal.ind), 1:243]
-Xv <-  smote_sbl[rownames(val.ind), 1:243]
+Xc <-  smote_sbl[rownames(cal.ind), 1:242]
+Xv <-  smote_sbl[rownames(val.ind), 1:242]
 
-cc.all <-  cal.ind[rownames(cal.ind), 244]
-cv.all <-  val.ind[rownames(val.ind), 244]
+cc.all <-  cal.ind[rownames(cal.ind), 243]
+cc.all <- as.factor (cc.all$Species)
+cv.all <-  val.ind[rownames(val.ind), 243]
+cv.all <- as.factor(cv.all$Species)
 table(cc.all)
 table(cv.all)
 
 cc.abba <- cc.all == "ABBA"
 cv.abba <- cv.all == "ABBA"
 
-m.all <-  plsda(Xc, cc.all, 20, cv = 1)
-m.abba <- plsda(Xc, cc.abba, 20, cv = 1, classname = "ABBA")
+
+m.all <-  mdatools::plsda(Xc, cc.all, ncomp = 9, cv = 1)
+m.abba <- mdatools::plsda(Xc, cc.abba, ncomp=2, cv = 1, classname = "ABBA")
 
 summary(m.all)
 summary(m.abba)
