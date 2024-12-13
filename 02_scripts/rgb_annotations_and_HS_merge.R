@@ -570,7 +570,14 @@ ggplot(melted_ACSAFAGR_CR, aes(x=Wavenumber, y=mean_reflectance, group = Label))
 
 ggsave(filename="03_figures/CR_ref_5sp_SBL.jpg")
 
-#### 8) Test PLSDA with smoothed spectra ####
+#### 8) PCA for most important bands ####
+#library(vegan)
+
+#rda1 <- vegan::rda(sbl_sp_ID_bd_full[,2:243])
+#summary(rda1)
+
+
+#### 9) Test PLSDA with smoothed spectra ####
 library(mdatools)
 library(tidyverse)
 library(smotefamily)
