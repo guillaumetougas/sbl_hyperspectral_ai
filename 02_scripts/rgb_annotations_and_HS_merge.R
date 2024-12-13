@@ -578,16 +578,16 @@ library(sf)
 
 set.seed(133) #For reproducibility
 #import
-sbl_sp_ID_bd <- read_rds("04_outputs/sbl_smoothed_spectra.rds")
+sbl_sp_ID_bd_full <- read_rds("04_outputs/sbl_smoothed_spectra.rds")
 
-sbl_sp_ID_bd$Label <- as.factor(sbl_sp_ID_bd$Label)
+sbl_sp_ID_bd_full$Label <- as.factor(sbl_sp_ID_bd_full$Label)
 
-tapply(sbl_sp_ID_bd$Label,sbl_sp_ID_bd$Label, FUN=length)#length of every label class
+tapply(sbl_sp_ID_bd_full$Label,sbl_sp_ID_bd_full$Label, FUN=length)#length of every label class
 
 
 #Global model
 
-sbl_sp_ID_bd <- sbl_sp_ID_bd[,-247]%>%
+sbl_sp_ID_bd <- sbl_sp_ID_bd_full[,-247]%>%
   dplyr::group_by(Label) %>%  # Group by 'Label'
   dplyr::filter(n() > 300) %>% # Keep groups with more than 300 occurrences
   dplyr::filter(!Label %in% c("Acer","Picea")) %>%
@@ -599,6 +599,8 @@ sbl_sp_ID_bd$Label <- as.factor(sbl_sp_ID_bd$Label)
 levels(sbl_sp_ID_bd$Label)
 
 table(sbl_sp_ID_bd[, 244])
+
+nrow(sbl_sp_ID_bd)/nrow(sbl_sp_ID_bd_full)
 
 # Apply SMOTE (maybe not for large class numbers)
 #smote_sbl_total <- SMOTE(X = sbl_sp_ID_bd[,2:244], target = sbl_sp_ID_bd$Label, 
