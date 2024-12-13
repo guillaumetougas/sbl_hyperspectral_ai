@@ -587,12 +587,21 @@ tapply(sbl_sp_ID_bd_full$Label,sbl_sp_ID_bd_full$Label, FUN=length)#length of ev
 
 #Global model
 
+#Filter 2 most present species only
 sbl_sp_ID_bd <- sbl_sp_ID_bd_full[,-247]%>%
   dplyr::group_by(Label) %>%  # Group by 'Label'
-  dplyr::filter(n() > 300) %>% # Keep groups with more than 300 occurrences
-  dplyr::filter(!Label %in% c("Acer","Picea")) %>%
+  dplyr::filter(Label %in% c("BEPA","ACRU")) %>%
   dplyr::ungroup() %>%   
   dplyr::filter(!is.na(Label))
+
+
+#Filter for only species with more than 300 occurences
+#sbl_sp_ID_bd <- sbl_sp_ID_bd_full[,-247]%>%
+#  dplyr::group_by(Label) %>%  # Group by 'Label'
+#  dplyr::filter(n() > 300) %>% # Keep groups with more than 300 occurrences
+#  dplyr::filter(!Label %in% c("Acer","Picea")) %>%
+#  dplyr::ungroup() %>%   
+#  dplyr::filter(!is.na(Label))
 
 sbl_sp_ID_bd$Label <- droplevels(sbl_sp_ID_bd$Label)#Drop unused factor levels from filtered out species
 sbl_sp_ID_bd$Label <- as.factor(sbl_sp_ID_bd$Label)
@@ -640,7 +649,7 @@ cc.abba <- cc.all == "ABBA"
 cv.abba <- cv.all == "ABBA"
 
 
-m.all <-  mdatools::plsda(Xc, cc.all, ncomp = 9, cv = 1)
+m.all <-  mdatools::plsda(Xc, cc.all, ncomp = 15, cv = 1)
 m.abba <- mdatools::plsda(Xc, cc.abba, ncomp=2, cv = 1, classname = "ABBA")
 
 summary(m.all)
