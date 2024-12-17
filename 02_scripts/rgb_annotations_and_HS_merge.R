@@ -125,7 +125,8 @@ CASI03_exact[4] <- round(CASI03_exact[4],2)
 colnames(CASI03_exact)[1:4] <- c("ID","X","Y","Weights")
 
 CASI03_exact <- CASI03_exact %>%
-  dplyr::filter(Weights>0.5)#filter weights<0.5
+  dplyr::filter(Weights>0.5)%>%#filter weights<0.5
+  dplyr::filter(B_678nm>0.0075)  #shadow threshold
 
 empty_rows <- apply(CASI03_exact[5:148], 1, function(x) all(x == 0))
 empty_polygons <- CASI03_exact[empty_rows, ]
@@ -136,7 +137,7 @@ CASI03_exact_filt <-CASI03_exact[!empty_rows,]
 #Averaging values
 ID <- unique(CASI03_exact_filt$ID)
 CASI03_mean <- CASI03_exact_filt %>% group_by(ID) %>% summarise_each(funs(mean)) #Average after grouping by ID
-#20957 trees in this flight line
+#20957 trees in this flight line (16690 after shadow thresholded)
 
 
 #Exactextract SASI FL 3
@@ -191,7 +192,9 @@ CASI04_exact[4] <- round(CASI04_exact[4],2)
 colnames(CASI04_exact)[1:4] <- c("ID","X","Y","Weights")
 
 CASI04_exact <- CASI04_exact %>%
-  dplyr::filter(CASI04_exact$Weights>0.5)#filter weights<0.5
+  dplyr::filter(Weights>0.5)%>%#filter weights<0.5
+  dplyr::filter(B_678nm>0.0075) #Shadow threshold for shaded pixels (removing of some darker pixels)
+
 
 empty_rows <- apply(CASI04_exact[5:148], 1, function(x) all(x == 0))
 empty_polygons <- CASI04_exact[empty_rows, ]
@@ -202,7 +205,7 @@ CASI04_exact_filt <-CASI04_exact[!empty_rows,]
 #Averaging values
 ID <- unique(CASI04_exact_filt$ID)
 CASI04_mean <- CASI04_exact_filt %>% group_by(ID) %>% summarise_each(funs(mean)) #Average after grouping by ID
-#5899 trees in this flight line
+#5899 trees in this flight line (5250 after shadow thresholded)
 
 
 #Exactextract SASI FL 3
@@ -300,6 +303,7 @@ bands_04$ID <- as.numeric(bands_04$ID)
 
 bands_03 <- read_rds("04_outputs/bands_only_03.rds")
 bands_04 <- read_rds("04_outputs/bands_only_04.rds")
+
 library(spectrolab)
 
 bands_03 <- bands_03[ , order(as.numeric(colnames(bands_03)))]
@@ -326,7 +330,7 @@ bands_0304_filtered <- bands_0304 %>%
 
 length(unique(bands_0304_filtered$ID))
 
-#MUST ALSO FILTER OUT SHADOWED PIXELS AND VERY LOW REFLECTANCE PIXELS IN GENERAL
+#MUST ALSO FILTER OUT SHADOWED PIXELS (DONE EARLIER) AND VERY LOW REFLECTANCE PIXELS IN GENERAL
 
 #as_spectra
 spectra_sbl <- as_spectra(bands_0304_filtered, name_idx = 244)
@@ -452,8 +456,8 @@ sbl_sp_ID_bd <- merge(sblID_bd,rgb_polygons,by="ID")
 #write_rds(sbl_sp_ID_bd, "04_outputs/sbl_smoothed_spectra.rds")
 sbl_sp_ID_bd <- read_rds("04_outputs/sbl_smoothed_spectra.rds")
 
-write_sf(sbl_sp_ID_bd, "04_outputs/sbl_smoothed_spectra.gpkg")
-write.csv(x=sbl_sp_ID_bd,file="04_outputs/sbl_smoothed_spectra.csv", row.names = F, sep = ";")
+#write_sf(sbl_sp_ID_bd, "04_outputs/sbl_smoothed_spectra.gpkg")
+#write.csv(x=sbl_sp_ID_bd,file="04_outputs/sbl_smoothed_spectra.csv", row.names = F, sep = ";")
 
 #### 5) Extract processed CR spectra to table with ID and species ####
 SI_sblCR <- (CR_sbl_bd@ID) # extract SI
@@ -471,6 +475,8 @@ sblID_bd_CR$ID <- gsub("[^0-9.-]", "", sblID_bd_CR$ID)
 #sbl_sp_ID_bd_CR <- merge(sblID_bd_CR,rgb_polygons,by="ID") #matching species and area with HS data
 
 #write_rds(sbl_sp_ID_bd_CR,"04_outputs/sbl_CR_spectra.rds")
+#write_sf(sbl_sp_ID_bd_CR, "04_outputs/sbl_CR_spectra.gpkg")
+
 
 sbl_sp_ID_bd_CR <- read_rds("04_outputs/sbl_CR_spectra.rds")
 
